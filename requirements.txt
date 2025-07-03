@@ -1,0 +1,6 @@
+streamlit
+climada
+numpy
+pandas
+matplotlib
+plotly
