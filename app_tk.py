@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import webbrowser
-from modules.climada_analysis import load_netcdf_data, calculate_impact
+from modules.climada_analysis import load_meteorological_data, load_oceanographic_data, calculate_hazard
 from modules.cost_calculator import calculate_losses
 from modules.folium_map import create_risk_map
 
@@ -11,14 +11,19 @@ class App:
         self.root.title("CLIMADA - Análise de Risco para Embarcações")
         
         # Variáveis de entrada
-        self.netcdf_path = tk.StringVar()
+        self.meteorological_path = tk.StringVar()
+        self.oceanographic_path = tk.StringVar()
         self.csv_path = tk.StringVar()
         self.wave_threshold = tk.DoubleVar(value=2.0)  # Padrão: 2m de onda
         
         # Widgets
-        ttk.Label(self.root, text="Arquivo NetCDF:").pack()
-        ttk.Entry(self.root, textvariable=self.netcdf_path).pack()
-        ttk.Button(self.root, text="Selecionar", command=self.browse_netcdf).pack()
+        ttk.Label(self.root, text="Arquivo Meteorológico NetCDF:").pack()
+        ttk.Entry(self.root, textvariable=self.meteorological_path).pack()
+        ttk.Button(self.root, text="Selecionar", command=self.browse_meteorological).pack()
+        
+        ttk.Label(self.root, text="Arquivo Oceanográfico NetCDF:").pack()
+        ttk.Entry(self.root, textvariable=self.oceanographic_path).pack()
+        ttk.Button(self.root, text="Selecionar", command=self.browse_oceanographic).pack()
         
         ttk.Label(self.root, text="CSV de Embarcações:").pack()
         ttk.Entry(self.root, textvariable=self.csv_path).pack()
@@ -31,17 +36,23 @@ class App:
         
         self.root.mainloop()
     
-    def browse_netcdf(self):
-        self.netcdf_path.set(filedialog.askopenfilename(filetypes=[("NetCDF", "*.nc")]))
+    def browse_meteorological(self):
+        self.meteorological_path.set(filedialog.askopenfilename(filetypes=[("NetCDF", "*.nc")]))
+    
+    def browse_oceanographic(self):
+        self.oceanographic_path.set(filedialog.askopenfilename(filetypes=[("NetCDF", "*.nc")]))
     
     def browse_csv(self):
         self.csv_path.set(filedialog.askopenfilename(filetypes=[("CSV", "*.csv")]))
     
     def run_analysis(self):
         try:
-            # Carrega dados e calcula impacto
-            waves, winds = load_netcdf_data(self.netcdf_path.get())
-            risk_map = calculate_impact(waves, self.wave_threshold.get())
+            # Carrega dados meteorológicos e oceanográficos
+            precipitation, wind_gusts, temperature = load_meteorological_data(self.meteorological_path.get())
+            wave_height, peak_period = load_oceanographic_data(self.oceanographic_path.get())
+            
+            # Calcula o risco
+            risk_map = calculate_hazard(precipitation, wind_gusts, wave_height, self.wave_threshold.get())
             
             # Gera mapa Folium
             lat_lon = [-23.5, -45.0]  # Coordenadas aproximadas da Bacia de Santos
