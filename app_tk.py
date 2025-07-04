@@ -1,3 +1,9 @@
+
+# No arquivo app_tk.py (adicionar no início)
+DEFAULT_NETCDF_METEO = "data/DadosAtmos_preditivos_RF/wrf_d01_2025062900.nc"
+DEFAULT_NETCDF_OCEANO = "data/DadosAtmos_preditivos_ONDA/ww3_2025063000_grid3.nc"
+
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import webbrowser
@@ -37,10 +43,18 @@ class App:
         self.root.mainloop()
     
     def browse_meteorological(self):
-        self.meteorological_path.set(filedialog.askopenfilename(filetypes=[("NetCDF", "*.nc")]))
-    
+        path = filedialog.askopenfilename(
+            initialdir="data/DadosAtmos_preditivos_RF",
+            filetypes=[("NetCDF", "*.nc")]
+        )
+        self.meteorological_path.set(path if path else DEFAULT_NETCDF_METEO)
+
     def browse_oceanographic(self):
-        self.oceanographic_path.set(filedialog.askopenfilename(filetypes=[("NetCDF", "*.nc")]))
+        path = filedialog.askopenfilename(
+            initialdir="data/DadosAtmos_preditivos_ONDA",
+            filetypes=[("NetCDF","*.nc")]
+        )
+        self.oceanographic_path.set(path if path else DEFAULT_NETCDF_OCEANO)
     
     def browse_csv(self):
         self.csv_path.set(filedialog.askopenfilename(filetypes=[("CSV", "*.csv")]))
