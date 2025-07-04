@@ -1,10 +1,12 @@
-climada>=3.0.0
 numpy
 pandas
 netCDF4
-folium>=0.14.0
+folium
 branca          # Para complementar o Folium
 matplotlib
 tkinter         # Já vem com Python
 geopandas       # Para manipulação de dados geográficos
 shapely         # Requisito do geopandas
+climada
+scipy
+python-dotenv
