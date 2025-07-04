@@ -1,6 +1,10 @@
-streamlit
-climada
+climada>=3.0.0
 numpy
 pandas
+netCDF4
+folium>=0.14.0
+branca          # Para complementar o Folium
 matplotlib
-plotly
+tkinter         # Já vem com Python
+geopandas       # Para manipulação de dados geográficos
+shapely         # Requisito do geopandas
