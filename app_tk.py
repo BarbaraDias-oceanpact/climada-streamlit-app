@@ -1,87 +1,65 @@
-import folium
-from folium.plugins import HeatMap
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import ttk, filedialog, messagebox
 import webbrowser
-from climada_integration import *  # Importa as funções do Passo 3
+from modules.climada_analysis import load_netcdf_data, calculate_impact
+from modules.cost_calculator import calculate_losses
+from modules.folium_map import create_risk_map
 
-class RiskApp:
-    def __init__(self, root):
-        self.root = root
-        self.setup_ui()
-        
-    def setup_ui(self):
-        # Configuração da janela
+class App:
+    def __init__(self):
+        self.root = tk.Tk()
         self.root.title("CLIMADA - Análise de Risco para Embarcações")
         
+        # Variáveis de entrada
+        self.netcdf_path = tk.StringVar()
+        self.csv_path = tk.StringVar()
+        self.wave_threshold = tk.DoubleVar(value=2.0)  # Padrão: 2m de onda
+        
         # Widgets
-        tk.Label(self.root, text="Arquivo NetCDF:").pack()
-        self.netcdf_entry = tk.Entry(self.root, width=50)
-        self.netcdf_entry.pack()
-        tk.Button(self.root, text="Procurar", command=self.browse_netcdf).pack()
+        ttk.Label(self.root, text="Arquivo NetCDF:").pack()
+        ttk.Entry(self.root, textvariable=self.netcdf_path).pack()
+        ttk.Button(self.root, text="Selecionar", command=self.browse_netcdf).pack()
         
-        tk.Label(self.root, text="Arquivo CSV de Embarcações:").pack()
-        self.csv_entry = tk.Entry(self.root, width=50)
-        self.csv_entry.pack()
-        tk.Button(self.root, text="Procurar", command=self.browse_csv).pack()
+        ttk.Label(self.root, text="CSV de Embarcações:").pack()
+        ttk.Entry(self.root, textvariable=self.csv_path).pack()
+        ttk.Button(self.root, text="Selecionar", command=self.browse_csv).pack()
         
-        tk.Label(self.root, text="Limite de Risco (m para ondas):").pack()
-        self.threshold_entry = tk.Entry(self.root)
-        self.threshold_entry.insert(0, "2.0")  # Valor padrão
-        self.threshold_entry.pack()
+        ttk.Label(self.root, text="Altura de Onda Limite (m):").pack()
+        ttk.Entry(self.root, textvariable=self.wave_threshold).pack()
         
-        tk.Button(self.root, text="Gerar Mapa de Risco", command=self.run_analysis).pack()
+        ttk.Button(self.root, text="Calcular Risco e Custos", command=self.run_analysis).pack()
         
+        self.root.mainloop()
+    
     def browse_netcdf(self):
-        filename = filedialog.askopenfilename(filetypes=[("NetCDF Files", "*.nc")])
-        self.netcdf_entry.delete(0, tk.END)
-        self.netcdf_entry.insert(0, filename)
+        self.netcdf_path.set(filedialog.askopenfilename(filetypes=[("NetCDF", "*.nc")]))
     
     def browse_csv(self):
-        filename = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
-        self.csv_entry.delete(0, tk.END)
-        self.csv_entry.insert(0, filename)
+        self.csv_path.set(filedialog.askopenfilename(filetypes=[("CSV", "*.csv")]))
     
     def run_analysis(self):
-        # Carrega dados
-        ocean_data = load_ocean_data(self.netcdf_entry.get())
-        vessels = load_vessels(self.csv_entry.get())
-        threshold = float(self.threshold_entry.get())
-        
-        # Processamento
-        hazard = create_hazard_map(ocean_data, threshold)
-        impact = calculate_impact(hazard, vessels)
-        cost_df = generate_cost_analysis(impact, daily_rate=5000)  # Taxa diária de exemplo
-        
-        # Mapa Folium
-        m = folium.Map(
-            location=[-23.5, -45.0],  # Centro na Bacia de Santos
-            zoom_start=7,
-            tiles="cartodbpositron"
-        )
-        
-        # Hotspots de risco
-        HeatMap(
-            data=ocean_data[['lat', 'lon', 'wave_height']].values,
-            radius=15,
-            blur=10
-        ).add_to(m)
-        
-        # Embarcações afetadas
-        for _, row in vessels.gdf.iterrows():
-            folium.CircleMarker(
-                location=[row.geometry.y, row.geometry.x],
-                radius=5,
-                color='red' if row['id'] in cost_df[cost_df['downtime_days'] > 0]['vessel_id'] else 'green',
-                fill=True,
-                popup=f"Embarcação {row['id']} - Custo: ${cost_df[cost_df['vessel_id'] == row['id']]['total_cost'].values[0]:.2f}"
-            ).add_to(m)
-        
-        # Salva e abre o mapa
-        m.save("output/risk_map.html")
-        webbrowser.open("output/risk_map.html")
+        try:
+            # Carrega dados e calcula impacto
+            waves, winds = load_netcdf_data(self.netcdf_path.get())
+            risk_map = calculate_impact(waves, self.wave_threshold.get())
+            
+            # Gera mapa Folium
+            lat_lon = [-23.5, -45.0]  # Coordenadas aproximadas da Bacia de Santos
+            create_risk_map(risk_map, lat_lon)
+            webbrowser.open("outputs/risk_map.html")
+            
+            # Calcula custos
+            risk_days = np.sum(risk_map)  # Dias de risco estimados
+            total_loss, report = calculate_losses(self.csv_path.get(), risk_days)
+            report.to_csv("outputs/report.csv", index=False)
+            
+            messagebox.showinfo(
+                "Análise Concluída",
+                f"""Custo total estimado: R${total_loss:,.2f}\n
+                Relatório salvo em outputs/report.csv"""
+            )
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha na análise: {str(e)}")
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = RiskApp(root)
-    root.mainloop()
+    App()
