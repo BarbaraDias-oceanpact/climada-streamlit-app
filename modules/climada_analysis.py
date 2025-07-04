@@ -1,15 +1,34 @@
 import numpy as np
 import netCDF4 as nc
-from climada.engine import Impact
 
-def load_netcdf_data(netcdf_path):
-    """Carrega dados meteorológicos/oceanográficos."""
-    data = nc.Dataset(netcdf_path)
-    waves = data.variables['wave_height'][:]  # Exemplo: altura das ondas
-    winds = data.variables['wind_speed'][:]   # Exemplo: velocidade do vento
-    return waves, winds
+def load_meteorological_data(netcdf_path):
+    """Carrega dados meteorológicos do arquivo NetCDF."""
+    dataset = nc.Dataset(netcdf_path)
+    
+    # Carregar variáveis relevantes
+    precipitation = dataset.variables['apcpsfc'][:]  # Total precipitation [kg/m^2]
+    wind_gusts = dataset.variables['gustsfc'][:]      # Surface wind gust [m/s]
+    temperature = dataset.variables['tmp2m'][:]        # 2 m above ground Temp. [K]
+    
+    return precipitation, wind_gusts, temperature
 
-def calculate_impact(waves, threshold=2.0):
-    """Retorna um mapa de risco binário (1 = perigo, 0 = seguro)."""
-    return np.where(waves > threshold, 1, 0)
+def load_oceanographic_data(netcdf_path):
+    """Carrega dados oceanográficos do arquivo NetCDF."""
+    dataset = nc.Dataset(netcdf_path)
+    
+    # Carregar variáveis relevantes
+    wave_height = dataset.variables['hs'][:]           # Sea surface wave significant height
+    peak_period = dataset.variables['tp'][:]            # Sea surface wave peak period
+    
+    return wave_height, peak_period
+
+def calculate_hazard(precipitation, wind_gusts, wave_height, threshold_wave=2.0):
+    """Calcula o risco baseado nas variáveis meteorológicas e oceanográficas."""
+    # Exemplo de lógica para determinar risco
+    risk_map = np.zeros_like(wave_height)  # Inicializa o mapa de risco
+    
+    # Condições de risco
+    risk_map[(wave_height > threshold_wave) | (wind_gusts > 15)] = 1  # Exemplo: ondas > 2m ou vento > 15 m/s
+    
+    return risk_map
 
